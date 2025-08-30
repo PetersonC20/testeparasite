@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Quiz Rápido — Professor</title><link rel="stylesheet" href="styles.css"></head>
+<body class="theme">
+  <header class="topbar"><h1>Quiz Rápido — Professor</h1><nav><a class="btn" href="index.html">Início</a></nav></header>
+  <main class="container">
+    <section class="card">
+      <h2>Configuração da Sala</h2>
+      <div class="row"><label>PIN da Sala<input id="pin-input" type="text" maxlength="6" placeholder="Ex.: 123456"/></label><button id="create-channel" class="btn primary">Criar/Conectar</button><span id="pin-status" class="chip">Desconectado</span></div>
+      <div class="row"><button id="open-presenter" class="btn"> Apresentar (novo separador)</button>
+</div> </section>
+    <section class="card grid-2">
+      <div>
+        <h2>Editor de Perguntas</h2>
+        <div id="question-editor">
+          <label>Pergunta<textarea id="q-text" rows="2" placeholder="Escreva o enunciado..."></textarea></label>
+          <div class="grid-2"><label>Alternativa A<input id="opt-0" type="text" placeholder="Opção A"/></label><label>Alternativa B<input id="opt-1" type="text" placeholder="Opção B"/></label><label>Alternativa C<input id="opt-2" type="text" placeholder="Opção C"/></label><label>Alternativa D<input id="opt-3" type="text" placeholder="Opção D"/></label></div>
+          <label>Índice da alternativa correta (0–3)<input id="correct-index" type="number" min="0" max="3" value="0"/></label>
+          <div class="row"><button id="add-question" class="btn primary">Adicionar/Atualizar</button><button id="clear-editor" class="btn">Limpar</button></div>
+        </div>
+        <hr/><h3>Banco de Perguntas</h3><ul id="question-list" class="list"></ul>
+      </div>
+      <div>
+        <h2>Transmissão & Controle</h2>
+        <div class="lobby card inner"><h3>Participantes (<span id="count-participants">0</span>)</h3><ul id="participant-list" class="list"></ul></div>
+        <div class="row"><button id="start-game" class="btn success">Iniciar Jogo</button><button id="next-question" class="btn accent" disabled>Próxima Pergunta</button><button id="end-game" class="btn danger" disabled>Encerrar Jogo</button></div>
+        <div id="live-area" class="live"><h3 id="live-title">Aguardando início...</h3><div id="timer" class="timer hidden">30</div><div id="live-question" class="live-question"></div><div id="live-options" class="live-options"></div></div>
+        <div id="leaderboard" class="leaderboard hidden"></div>
+      </div>
+    </section>
+  </main>
+  <footer class="footer"><small>Para funcionamento completo, abra o Host e o Presenter no mesmo domínio.</small></footer>
+  <script src="common.js"></script>
+  <script src="app_host.js"></script>
+</body>
+</html>

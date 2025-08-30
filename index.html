@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Quiz Rápido — Início</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme">
+  <header class="topbar"><h1>Quiz Rápido</h1><p class="subtitle">Estilo Kahoot — com Presenter</p></header>
+  <main class="container">
+    <section class="card grid-2">
+      <div><h2>Sou Professor</h2><p>Gerencie perguntas, inicie partidas e abra a visão de apresentação (slides).</p><a class="btn primary" href="#" onclick="entrarProfessor()">Entrar como Professor</a></div>
+      <div class="divider"></div>
+      <div><h2>Sou Participante</h2><p>Entre com apelido e PIN da sala para jogar.</p><a class="btn accent" href="play.html">Entrar como Participante</a></div>
+    </section>
+    <section class="card"><h3>Novidades</h3><ul><li>Presenter: controle teclado — <strong>Espaço</strong> Iniciar, <strong>Seta →</strong> Próxima, <strong>Seta ←</strong> Anterior, <strong>Enter</strong> Mostrar resposta, <strong>Esc</strong> Sair</li><li>Respostas com animação suave e pontuação por rapidez</li></ul></section>
+  </main>
+  <footer class="footer"><small>Versão com Presenter — sem servidor (BroadcastChannel).</small></footer>
+
+<script>
+  function entrarProfessor() {
+    const senha = prompt("Digite a senha para acessar como Professor:");
+    if (senha === "09876") {
+      window.location.href = "host.html";
+    } else if (senha !== null) {
+      alert("Senha incorreta!");
+    }
+  }
+</script>
+</body>
+</html>
+

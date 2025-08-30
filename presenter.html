@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Presenter — Quiz Rápido</title><link rel="stylesheet" href="styles.css">
+<style>
+/* Presenter specific */
+.presenter{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.slide{width:100%;max-width:1000px;border-radius:20px;padding:28px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));box-shadow:0 30px 60px rgba(0,0,0,.5);min-height:280px;display:flex;flex-direction:column;justify-content:space-between;transition:transform .45s cubic-bezier(.2,.9,.2,1),opacity .35s;}
+.slide.hidden{opacity:0;transform:translateY(20px) scale(.995)}
+.slide h2{margin:0 0 12px}
+.slide .opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.opt-pill{padding:18px;border-radius:12px;border:2px solid rgba(255,255,255,0.05);background:rgba(0,0,0,0.15);font-weight:700;transition:transform .35s, box-shadow .35s, background .35s}
+.opt-pill.reveal.correct{background:linear-gradient(90deg, rgba(50,220,150,0.15), rgba(50,220,150,0.06));box-shadow:0 10px 30px rgba(50,220,150,0.06);transform:translateY(-6px) scale(1.02)}
+.opt-pill.reveal.wrong{background:linear-gradient(90deg, rgba(255,80,100,0.06), rgba(255,80,100,0.03));transform:translateY(4px);opacity:.9}
+.caption{margin-top:14px;color:var(--muted)}
+.keyboard-hint{position:fixed;left:16px;bottom:16px;background:rgba(0,0,0,0.25);padding:10px;border-radius:12px;border:1px solid #222;color:var(--muted);}
+
+.opt-bounce { animation: bump .45s ease; }
+@keyframes bump { 0%{transform:scale(1)} 50%{transform:scale(1.04)} 100%{transform:scale(1)} }
+
+/* Estilos para a tela inicial com o botão */
+#start-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  z-index: 1000;
+  transition: opacity 0.5s ease-out;
+}
+#start-screen.hidden {
+  opacity: 0;
+  pointer-events: none; /* Garante que não haja interação quando escondido */
+}
+#start-screen h1 {
+  font-size: 3em;
+  margin-bottom: 20px;
+}
+#start-screen button {
+  padding: 15px 30px;
+  font-size: 1.5em;
+  border-radius: 15px;
+  border: none;
+  background-color: var(--accent);
+  color: var(--bg);
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+#start-screen button:hover {
+  background-color: #00e0b3; /* Um pouco mais claro */
+  transform: translateY(-3px);
+}
+#start-screen .info-text {
+  margin-top: 20px;
+  font-size: 1.1em;
+  color: var(--muted);
+}
+</style></head>
+<body class="theme">
+  <div id="start-screen">
+    <h1>Quiz Rápido</h1>
+    <p class="info-text">Pronto para começar?</p>
+    <button id="start-quiz-button" class="btn">Iniciar Quiz</button>
+    <p class="info-text" style="margin-top: 30px;">
+      Ou use a tecla **Espaço** para iniciar
+    </p>
+  </div>
+
+  <div class="presenter">
+    <div id="slide" class="slide hidden">
+      <div><h2 id="slide-question">Aguardando...</h2><div id="slide-sub" class="caption"></div></div>
+      <div class="opts" id="slide-options"></div>
+    </div>
+    <div class="keyboard-hint">Espaço → Iniciar | Seta → Próx | Seta ← Anterior | Enter → Mostrar resposta | Esc → Sair</div>
+  </div>
+  <script src="common.js"></script>
+  <script>
+
+// Presenter logic: listens to host via BroadcastChannel and provides keyboard controls.
+function startProgress(deadline){
+  stopProgress();
+  const containerId = 'presenter_progress';
+  let container = document.getElementById(containerId);
+  if(!container){
+    container = document.createElement('div');
+    container.id = containerId;
+    container.style.position='absolute';
+    container.style.left='50%';
+    container.style.bottom='28px';
+    container.style.transform='translateX(-50%)';
+    container.style.width='60%';
+    container.style.maxWidth='900px';
+    container.style.height='10px';
+    container.style.background='rgba(255,255,255,0.06)';
+    container.style.borderRadius='10px';
+    container.style.overflow='hidden';
+    const bar = document.createElement('div');
+    bar.id = 'presenter_progress_bar';
+    bar.style.height = '100%';
+    bar.style.width = '100%';
+    bar.style.transformOrigin = 'left';
+    bar.style.transition = 'width 0.2s linear';
+    container.appendChild(bar);
+    document.body.appendChild(container);
+  }
+  const bar = document.getElementById('presenter_progress_bar');
+  const total = Math.max(1000, deadline - Date.now());
+  function frame(){
+    const remaining = Math.max(0, deadline - Date.now());
+    const pct = (remaining/total)*100;
+    if(bar) bar.style.width = pct + '%';
+    if(remaining > 0) requestAnimationFrame(frame);
+    else stopProgress();
+  }
+  requestAnimationFrame(frame);
+}
+function stopProgress(){
+  const bar = document.getElementById('presenter_progress_bar');
+  const container = document.getElementById('presenter_progress');
+  if(bar) bar.style.width = '0%';
+  if(container) container.remove();
+}
+
+// Fallback manual connect UI if host message missed
+function ensureManualConnect(){
+  if(pin) return;
+  if(document.getElementById('presenter-connect')) return;
+  const c = document.createElement('div');
+  c.id = 'presenter-connect';
+  c.style.position='fixed'; c.style.top='12px'; c.style.right='12px';
+  c.style.background='rgba(0,0,0,0.6)'; c.style.color='#fff'; c.style.padding='8px 10px'; c.style.borderRadius='10px';
+  c.innerHTML = '<input id="presenter_pin_input" placeholder="PIN da sala" style="padding:6px;border-radius:6px;border:1px solid #444;background:transparent;color:#fff;margin-right:6px"> <button id="presenter_connect_btn" class="btn">Conectar</button>';
+  document.body.appendChild(c);
+  document.getElementById('presenter_connect_btn').onclick = ()=>{
+    const v = document.getElementById('presenter_pin_input').value.trim();
+    if(v) connect(v);
+  };
+}
+ensureManualConnect();
+
+    function showFeedback(msg){
+      const fb = document.getElementById('feedbackOverlay');
+      if(!fb) return;
+      fb.textContent = msg;
+      fb.style.display = 'block';
+      fb.style.opacity = '1';
+      setTimeout(()=>{ fb.style.opacity='0'; }, 1200);
+      setTimeout(()=>{ fb.style.display='none'; }, 2000);
+    }
+
+    function requestStart(){
+      document.getElementById('start-screen').classList.add('hidden');
+      if(!channel) return;
+      channel.postMessage({type:'PRES_START'});
+    }
+
+    function showGameOver(leaderboard){
+      qEl.textContent = 'Fim de jogo!';
+      subEl.textContent = 'Pódio dos vencedores';
+      optsEl.innerHTML = '';
+      const podium = document.createElement('div');
+      podium.style.display='flex';
+      podium.style.gap='12px';
+      podium.style.alignItems='end';
+      podium.style.justifyContent='center';
+      const top3 = (leaderboard||[]).slice(0,3);
+      top3.forEach((p,idx)=>{
+        const box = document.createElement('div');
+        box.className='opt-pill reveal ' + (idx===0 ? 'correct' : '');
+        box.style.width = (idx===0?220:idx===1?180:160)+'px';
+        box.style.height = (idx===0?180:idx===1?150:130)+'px';
+        box.style.display='flex';
+        box.style.flexDirection='column';
+        box.style.alignItems='center';
+        box.style.justifyContent='center';
+        box.innerHTML = `<div style="font-size:1.1rem;font-weight:800">#${idx+1}</div>
+          <div style="margin-top:6px">${p?.name ?? '—'}</div>
+          <div style="margin-top:6px">${p?.score ?? 0} pts</div>`;
+        podium.appendChild(box);
+      });
+      optsEl.appendChild(podium);
+    }
+
+    let pin = localStorage.getItem('presenter_pin') || '';
+    const slide = document.getElementById('slide');
+    const qEl = document.getElementById('slide-question');
+    const optsEl = document.getElementById('slide-options');
+    const subEl = document.getElementById('slide-sub');
+    let channel = null;
+    let current = null; // {qIndex, options, correct, deadline, text}
+    function connect(pinCode){
+      if(channel) channel.close();
+      channel = new BroadcastChannel('quiz_'+pinCode);
+      channel.onmessage = onMessage;
+      localStorage.setItem('presenter_pin', pinCode);
+      pin = pinCode;
+    }
+    function onMessage(ev){
+      const msg = ev.data;
+      if(!msg || !msg.type) return;
+      if(msg.type === 'START_ROUND' || msg.type==='START_ROUND_PRES'){
+        showQuestion(msg);
+      }else if(msg.type === 'ROUND_RESULT'){
+        revealAnswer(msg.correct);
+      }else if(msg.type === 'GAME_OVER'){
+        showGameOver(msg.leaderboard);
+      }
+    }
+    function showQuestion(msg){
+      document.getElementById('start-screen').classList.add('hidden');
+      current = msg;
+      qEl.textContent = msg.text || '---';
+      subEl.textContent = `Pergunta ${msg.qIndex+1}`;
+      optsEl.innerHTML = '';
+      (msg.options||[]).forEach((o,i)=>{
+        const d = document.createElement('div');
+        d.className = 'opt-pill';
+        d.dataset.index = i;
+        d.innerHTML = `<strong>${String.fromCharCode(65+i)}</strong>. ${o}`;
+        optsEl.appendChild(d);
+      });
+      slide.classList.remove('hidden');
+      slide.style.opacity = '1';
+      slide.style.transform = 'translateY(0) scale(1)';
+      if(msg.deadline) startProgress(msg.deadline);
+    }
+    function revealAnswer(idx){
+      if(idx==null) return;
+      Array.from(optsEl.children).forEach((el)=>{
+        const i = Number(el.dataset.index);
+        if(i === idx) el.classList.add('reveal','correct');
+        else el.classList.add('reveal', 'wrong');
+      });
+    }
+    function hideSlide(){
+      slide.classList.add('hidden');
+    }
+    function requestPrev(){
+      if(!channel || !pin) return;
+      channel.postMessage({type:'PRES_PREV'});
+    }
+    function requestNext(){
+      if(!channel || !pin) return;
+      channel.postMessage({type:'PRES_NEXT'});
+    }
+    function requestShowAnswer(){
+      if(!channel || !pin) return;
+      channel.postMessage({type:'PRES_SHOW'});
+    }
+    function requestExit(){
+      if(!channel || !pin) return;
+      channel.postMessage({type:'PRES_EXIT'});
+    }
+    window.addEventListener('keydown', (e)=>{
+  if(e.code === 'Space'){ e.preventDefault(); requestStart(); showFeedback('Quiz iniciado'); }
+  else if(e.code === 'ArrowRight'){ requestNext(); showFeedback('Próxima pergunta'); }
+  else if(e.code === 'ArrowLeft'){ requestPrev(); showFeedback('Pergunta anterior'); }
+  else if(e.code === 'Enter'){ requestShowAnswer(); showFeedback('Mostrando resposta'); }
+  else if(e.code === 'Escape'){ requestExit(); showFeedback('Saindo da apresentação'); }
+});
+    document.getElementById('start-quiz-button').addEventListener('click', requestStart);
+
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.presenter_pin) {
+    connect(e.data.presenter_pin);
+  }
+});
+if (pin) {
+  connect(pin);
+}
+</script>
+</body>
+</html>
