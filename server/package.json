@@ -1,1 +1,13 @@
-
+{
+  "name": "quiz-ws-relay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Servidor WebSocket relay para o Quiz (até 40 players, mobile/desktop).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
